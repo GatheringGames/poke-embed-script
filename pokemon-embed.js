@@ -23,20 +23,28 @@
   `;
   document.head.appendChild(style);
 
+  // Get exchange rates
+  async function getRates() {
+    const res = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=EUR,GBP");
+    const data = await res.json();
+    return {
+      eur: data.rates.EUR || 0.9,
+      gbp: data.rates.GBP || 0.8
+    };
+  }
+
   function initEmbeds() {
     const regex = /embed::\[\[(.+?)\s+\((.+?)\)\]\]/g;
     document.querySelectorAll("p").forEach(p => {
       let match;
       while ((match = regex.exec(p.innerHTML)) !== null) {
-        const [fullMatch, name, rawId] = match;
-        const [set, num] = rawId.split("-");
-        const id = `${set}/${num}`;
-
+        const [fullMatch, name, id] = match;
+        const [setCode, cardNum] = id.split("-");
         const container = document.createElement("div");
         container.className = "poke-embed";
         container.innerHTML = `
           <div class="poke-card-image">
-            <img src="https://images.pokemontcg.io/${id}.png" alt="${name}" data-hires="https://images.pokemontcg.io/${id}_hires.png" />
+            <img src="https://images.pokemontcg.io/${setCode}/${cardNum}.png" alt="${name}" data-hires="https://images.pokemontcg.io/${setCode}/${cardNum}_hires.png" />
           </div>
           <div class="poke-info">
             <h3>${name}</h3>
@@ -57,13 +65,15 @@
         });
 
         // Price chart setup
-        loadPriceChart(rawId, container); // Keep rawId for Supabase query
+        loadPriceChart(id, container);
       }
     });
   }
 
   async function loadPriceChart(cardId, container) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/pokemon_card_prices?select=date,price_usd,price_eur,price_gbp&card_id=eq.${cardId}&order=date.asc`, {
+    const rates = await getRates();
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/pokemon_card_prices?select=date,price_usd&card_id=eq.${cardId}&order=date.asc`, {
       headers: {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`,
@@ -76,8 +86,8 @@
     const dates = data.map(d => d.date);
     const prices = {
       usd: data.map(d => d.price_usd),
-      eur: data.map(d => d.price_eur),
-      gbp: data.map(d => d.price_gbp),
+      eur: data.map(d => d.price_usd * rates.eur),
+      gbp: data.map(d => d.price_usd * rates.gbp)
     };
 
     const ctx = container.querySelector("canvas").getContext("2d");
