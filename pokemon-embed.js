@@ -74,6 +74,8 @@
       color: white;
     }
     canvas.poke-price-chart {
+      width: 100%;
+      height: 300px;
       max-width: 100%;
       margin: 1em auto 0 auto;
       background: white;
@@ -185,16 +187,13 @@
     const currentPriceEl = container.querySelector(".poke-current-price");
     currentPriceEl.textContent = `$${latest}`;
 
-    let range = 7;
-    let filtered = rawData.slice(-range);
-
     const chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: filtered.map(d => d.date),
+        labels: rawData.slice(-7).map(d => d.date),
         datasets: [{
           label: "Price (USD)",
-          data: filtered.map(d => d.price_usd),
+          data: rawData.slice(-7).map(d => d.price_usd),
           borderColor: "#d8232f",
           backgroundColor: "rgba(216,35,47,0.2)",
           fill: true,
@@ -223,6 +222,7 @@
 
         chart.data.labels = dataset.map(d => d.date);
         chart.data.datasets[0].data = dataset.map(d => d.price_usd);
+        chart.data.datasets[0].label = "Price (USD)";
         chart.update();
       });
     });
@@ -234,10 +234,12 @@
         const currency = btn.dataset.currency;
         const rate = currency === "eur" ? exchangeRates.eur : currency === "gbp" ? exchangeRates.gbp : 1;
         const label = `Price (${currency.toUpperCase()})`;
+
         chart.data.datasets[0].label = label;
         chart.data.datasets[0].data = chart.data.datasets[0].data.map(p => parseFloat((p * rate).toFixed(2)));
         chart.update();
-        currentPriceEl.textContent = `${currency.toUpperCase() === "USD" ? "$" : currency.toUpperCase() === "EUR" ? "€" : "£"}${(latest * rate).toFixed(2)}`;
+
+        currentPriceEl.textContent = `${currency === "usd" ? "$" : currency === "eur" ? "€" : "£"}${(latest * rate).toFixed(2)}`;
       });
     });
 
