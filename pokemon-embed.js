@@ -6,7 +6,10 @@
 
   const exchangeRates = await fetch(EXCHANGE_RATE_API)
     .then(r => r.json())
-    .then(data => ({ eur: data.rates.EUR, gbp: data.rates.GBP }))
+    .then(data => ({
+      eur: data.rates.EUR,
+      gbp: data.rates.GBP
+    }))
     .catch(() => ({ eur: 0.92, gbp: 0.78 }));
 
   const chartJsScript = document.createElement("script");
@@ -14,7 +17,83 @@
   document.head.appendChild(chartJsScript);
   chartJsScript.onload = () => initEmbeds();
 
-  // Existing style code unchanged...
+  const style = document.createElement("style");
+  style.textContent = `
+    .poke-embed {
+      background: #394042;
+      color: white;
+      border-radius: 8px;
+      padding: 1em;
+      margin: 1em 0;
+      display: flex;
+      gap: 1em;
+      border: 2px solid #5c696d;
+      align-items: center;
+    }
+    .poke-card-image img {
+      width: 250px;
+      border-radius: 4px;
+      cursor: zoom-in;
+      display: block;
+      margin: 0 auto;
+    }
+    .poke-info {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .poke-info h3 {
+      margin-top: 0;
+      color: white;
+    }
+    .poke-rarity {
+      margin-bottom: 0.5em;
+      color: #ccc;
+    }
+    .poke-price-label {
+      font-weight: bold;
+      margin-top: 0.5em;
+    }
+    .poke-currency-buttons, .poke-range-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.5em;
+      margin-top: 0.5em;
+    }
+    .poke-currency-buttons button, .poke-range-buttons button {
+      padding: 4px 8px;
+      cursor: pointer;
+      border: none;
+      background: #ccc;
+      border-radius: 4px;
+    }
+    .poke-currency-buttons button.active, .poke-range-buttons button.active {
+      background-color: #d8232f;
+      color: white;
+    }
+    canvas.poke-price-chart {
+      max-width: 100%;
+      margin: 1em auto 0 auto;
+      background: white;
+      border-radius: 4px;
+      display: block;
+    }
+    .poke-price-note {
+      font-size: 0.8em;
+      margin-top: 4px;
+      color: #ccc;
+      text-align: center;
+    }
+    @media (max-width: 768px) {
+      .poke-embed {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 
   async function initEmbeds() {
     const regex = /embed::\[\[(.+?)\s+\((.+?)\)\]\]/g;
@@ -60,10 +139,36 @@
         `;
 
         p.replaceWith(container);
-
         setupEmbed(container, id);
       }
     }
+  }
+
+  function aggregateData(data, intervalDays) {
+    const grouped = [];
+    let temp = [];
+    let lastDate = new Date(data[0].date);
+
+    for (const point of data) {
+      const currentDate = new Date(point.date);
+      const diffDays = (currentDate - lastDate) / (1000 * 60 * 60 * 24);
+      if (diffDays < intervalDays) {
+        temp.push(point);
+      } else {
+        if (temp.length) grouped.push(temp);
+        temp = [point];
+        lastDate = currentDate;
+      }
+    }
+    if (temp.length) grouped.push(temp);
+
+    return grouped.map(group => {
+      const avg = group.reduce((sum, d) => sum + d.price_usd, 0) / group.length;
+      return {
+        date: group[0].date,
+        price_usd: parseFloat(avg.toFixed(2))
+      };
+    });
   }
 
   async function setupEmbed(container, id) {
@@ -71,45 +176,53 @@
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
 
-    if (!res.ok) {
-      console.error("Price data fetch failed", await res.text());
-      return;
-    }
+    if (!res.ok) return console.error("Price fetch failed", await res.text());
+    let rawData = await res.json();
+    if (!rawData.length) return;
 
-    const data = await res.json();
     const ctx = container.querySelector("canvas").getContext("2d");
-    const dates = data.map(d => d.date);
-    const usdPrices = data.map(d => d.price_usd);
+    const latest = rawData[rawData.length - 1].price_usd;
+    const currentPriceEl = container.querySelector(".poke-current-price");
+    currentPriceEl.textContent = `$${latest}`;
 
-    function aggregateData(range, prices) {
-      if (range <= 30) return prices.slice(-range);
-      const groupedPrices = [];
-      const step = range === 180 ? 14 : 30;
-      for (let i = prices.length - range; i < prices.length; i += step) {
-        const chunk = prices.slice(i, i + step);
-        const avg = chunk.reduce((acc, p) => acc + p, 0) / chunk.length;
-        groupedPrices.push(parseFloat(avg.toFixed(2)));
-      }
-      return groupedPrices;
-    }
+    let range = 7;
+    let filtered = rawData.slice(-range);
 
     const chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: dates.slice(-7),
-        datasets: [{ label: "Price (USD)", data: usdPrices.slice(-7), borderColor: "#d8232f", backgroundColor: "rgba(216,35,47,0.2)", fill: true }]
+        labels: filtered.map(d => d.date),
+        datasets: [{
+          label: "Price (USD)",
+          data: filtered.map(d => d.price_usd),
+          borderColor: "#d8232f",
+          backgroundColor: "rgba(216,35,47,0.2)",
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { display: true },
+          y: { beginAtZero: false },
+        },
       }
     });
-
-    container.querySelector(".poke-current-price").textContent = `$${usdPrices[usdPrices.length - 1]}`;
 
     container.querySelectorAll(".poke-range-buttons button").forEach(btn => {
       btn.addEventListener("click", () => {
         container.querySelector(".poke-range-buttons .active").classList.remove("active");
         btn.classList.add("active");
         const range = parseInt(btn.dataset.range);
-        chart.data.labels = aggregateData(range, dates);
-        chart.data.datasets[0].data = aggregateData(range, usdPrices);
+        let dataset = rawData;
+
+        if (range === 180) dataset = aggregateData(rawData.slice(-180), 14);
+        else if (range === 365) dataset = aggregateData(rawData.slice(-365), 30);
+        else dataset = rawData.slice(-range);
+
+        chart.data.labels = dataset.map(d => d.date);
+        chart.data.datasets[0].data = dataset.map(d => d.price_usd);
         chart.update();
       });
     });
@@ -119,15 +232,17 @@
         container.querySelector(".poke-currency-buttons .active").classList.remove("active");
         btn.classList.add("active");
         const currency = btn.dataset.currency;
-        const rate = currency === 'usd' ? 1 : exchangeRates[currency];
-        const convertedPrices = usdPrices.map(p => parseFloat((p * rate).toFixed(2)));
-        chart.data.datasets[0].label = `Price (${currency.toUpperCase()})`;
-        chart.data.datasets[0].data = aggregateData(parseInt(container.querySelector(".poke-range-buttons .active").dataset.range), convertedPrices);
+        const rate = currency === "eur" ? exchangeRates.eur : currency === "gbp" ? exchangeRates.gbp : 1;
+        const label = `Price (${currency.toUpperCase()})`;
+        chart.data.datasets[0].label = label;
+        chart.data.datasets[0].data = chart.data.datasets[0].data.map(p => parseFloat((p * rate).toFixed(2)));
         chart.update();
-        container.querySelector(".poke-current-price").textContent = `${currency.toUpperCase()} ${convertedPrices[convertedPrices.length - 1]}`;
+        currentPriceEl.textContent = `${currency.toUpperCase() === "USD" ? "$" : currency.toUpperCase() === "EUR" ? "€" : "£"}${(latest * rate).toFixed(2)}`;
       });
     });
 
-    container.querySelector("img").addEventListener("click", e => window.open(e.target.dataset.hires, "_blank"));
+    container.querySelector("img").addEventListener("click", e => {
+      window.open(e.target.dataset.hires, "_blank");
+    });
   }
 })();
