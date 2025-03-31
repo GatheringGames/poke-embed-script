@@ -29,11 +29,11 @@
       flex-wrap: wrap;
       gap: 1em;
       border: 2px solid #5c696d;
+      align-items: center;
     }
     .poke-card-image {
-      display: flex;
-      justify-content: center;
-      width: 100%;
+      text-align: center;
+      flex: 0 0 250px;
     }
     .poke-embed img {
       width: 250px;
@@ -43,6 +43,9 @@
     .poke-info {
       flex: 1;
       min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     .poke-info h3 {
       margin-top: 0;
@@ -52,16 +55,12 @@
       font-weight: bold;
       margin-top: 0.5em;
     }
-    .poke-currency-buttons,
-    .poke-range-buttons {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-top: 0.5em;
+    .poke-currency-buttons, .poke-range-buttons {
+      text-align: center;
     }
     .poke-currency-buttons button,
     .poke-range-buttons button {
-      margin: 0.25em;
+      margin: 0.25em 0.5em 0.25em 0 !important;
       padding: 4px 8px;
       cursor: pointer;
       border: none;
@@ -83,7 +82,15 @@
       font-size: 0.8em;
       margin-top: 4px;
       color: #ccc;
-      text-align: center;
+    }
+    @media (max-width: 768px) {
+      .poke-embed {
+        flex-direction: column;
+        align-items: center;
+      }
+      .poke-card-image {
+        width: 100%;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -147,12 +154,14 @@
     const pricesEUR = pricesUSD.map(p => p * exchangeRates.eur);
     const pricesGBP = pricesUSD.map(p => p * exchangeRates.gbp);
 
+    const currentUSD = pricesUSD[pricesUSD.length - 1] || 0;
     const currencyMap = { usd: pricesUSD, eur: pricesEUR, gbp: pricesGBP };
     const chartLabelMap = { usd: "USD", eur: "EUR", gbp: "GBP" };
 
-    const ctx = container.querySelector("canvas").getContext("2d");
     const priceDisplay = container.querySelector(".poke-current-price");
+    priceDisplay.textContent = `$${currentUSD.toFixed(2)}`;
 
+    const ctx = container.querySelector("canvas").getContext("2d");
     let chart = new Chart(ctx, {
       type: "line",
       data: {
@@ -204,15 +213,12 @@
     }
 
     function averageOverIntervals(dates, values, days) {
-      const resultDates = [];
-      const resultValues = [];
+      const resultDates = [], resultValues = [];
       let sum = 0, count = 0, startDate = new Date(dates[0]);
-
       for (let i = 0; i < dates.length; i++) {
         const current = new Date(dates[i]);
         sum += values[i];
         count++;
-
         if ((current - startDate) / (1000 * 60 * 60 * 24) >= days || i === dates.length - 1) {
           resultDates.push(dates[i]);
           resultValues.push(sum / count);
@@ -225,10 +231,8 @@
     }
 
     function averageOverMonths(dates, values) {
-      const resultDates = [];
-      const resultValues = [];
+      const resultDates = [], resultValues = [];
       let sum = 0, count = 0, currentMonth = new Date(dates[0]).getMonth();
-
       for (let i = 0; i < dates.length; i++) {
         const d = new Date(dates[i]);
         if (d.getMonth() !== currentMonth && count > 0) {
@@ -268,7 +272,6 @@
       });
     });
 
-    // Initial chart load
     updateChart("usd", 7);
   }
 })();
