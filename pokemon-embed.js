@@ -19,79 +19,25 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    .poke-embed {
-      background: #394042;
-      color: white;
-      border-radius: 8px;
-      padding: 1em;
-      margin: 1em 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1em;
-      border: 2px solid #5c696d;
-      align-items: center;
+    .poke-embed { background: #394042; color: white; border-radius: 8px; padding: 1em; margin: 1em 0; display: flex; flex-wrap: wrap; gap: 1em; border: 2px solid #5c696d; align-items: center; }
+    .poke-embed img { width: 250px; border-radius: 4px; cursor: zoom-in; }
+    .poke-info { flex: 1; min-width: 200px; display: flex; flex-direction: column; justify-content: center; }
+    .poke-info h3 { margin-top: 0; color: white; }
+    .poke-price-label { font-weight: bold; margin-top: 0.5em; }
+    .poke-currency-buttons, .poke-range-buttons {
+      display: flex; justify-content: center; flex-wrap: wrap;
     }
-    .poke-card-image {
-      text-align: center;
-      flex-shrink: 0;
+    .poke-currency-buttons button, .poke-range-buttons button {
+      margin: 0.25em 0.5em 0.25em 0  !important; padding: 4px 8px;
+      cursor: pointer; border: none; background: #ccc; border-radius: 4px;
     }
-    .poke-card-image img {
-      width: 250px;
-      border-radius: 4px;
-      cursor: zoom-in;
+    .poke-currency-buttons button.active, .poke-range-buttons button.active {
+      background-color: #d8232f; color: white;
     }
-    .poke-info {
-      flex: 1;
-      min-width: 200px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    .poke-info h3 {
-      margin-top: 0;
-      color: white;
-    }
-    .poke-price-label {
-      font-weight: bold;
-      margin-top: 0.5em;
-    }
-    .poke-currency-buttons,
-    .poke-range-buttons {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .poke-currency-buttons button,
-    .poke-range-buttons button {
-      margin: 0.25em 0.5em 0.25em 0 !important;
-      padding: 4px 8px;
-      cursor: pointer;
-      border: none;
-      background: #ccc;
-      border-radius: 4px;
-    }
-    .poke-currency-buttons button.active,
-    .poke-range-buttons button.active {
-      background-color: #d8232f;
-      color: white;
-    }
-    canvas.poke-price-chart {
-      max-width: 100%;
-      margin-top: 1em;
-      background: white;
-      border-radius: 4px;
-    }
-    .poke-price-note {
-      font-size: 0.8em;
-      margin-top: 4px;
-      color: #ccc;
-      text-align: center;
-    }
-    @media (max-width: 600px) {
-      .poke-embed {
-        flex-direction: column;
-        align-items: center;
-      }
+    canvas.poke-price-chart { max-width: 100%; margin-top: 1em; background: white; border-radius: 4px; }
+    .poke-price-note { font-size: 0.8em; margin-top: 4px; color: #ccc; }
+    @media (max-width: 768px) {
+      .poke-embed { flex-direction: column; align-items: center; text-align: center; }
     }
   `;
   document.head.appendChild(style);
@@ -110,7 +56,7 @@
             <img src="https://images.pokemontcg.io/${set}/${number}.png" alt="${name}" data-hires="https://images.pokemontcg.io/${set}/${number}_hires.png" />
           </div>
           <div class="poke-info">
-            <h3>${name}</h3>
+            <h3 class="poke-title">${name}</h3>
             <div class="poke-price-label">Current Market Price: <span class="poke-current-price">...</span></div>
             <div class="poke-price-note">Prices provided by TCGplayer</div>
             <div class="poke-currency-buttons">
@@ -134,12 +80,12 @@
           if (url) window.open(url, "_blank");
         });
 
-        loadPriceChart(id, container);
+        loadPriceChart(id, name, container);
       }
     });
   }
 
-  async function loadPriceChart(cardId, container) {
+  async function loadPriceChart(cardId, cardName, container) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/pokemon_card_prices?select=date,price_usd&card_id=eq.${cardId}&order=date.asc`, {
       headers: {
         apikey: SUPABASE_KEY,
@@ -161,6 +107,20 @@
 
     const priceDisplay = container.querySelector(".poke-current-price");
     priceDisplay.textContent = `$${currentUSD.toFixed(2)}`;
+
+    // Fetch card data from API for rarity info
+    try {
+      const [set, number] = cardId.split("-");
+      const rarityRes = await fetch(`https://api.pokemontcg.io/v2/cards/${set}-${number}`);
+      const rarityData = await rarityRes.json();
+      const rarity = rarityData?.data?.rarity;
+      if (rarity) {
+        const title = container.querySelector(".poke-title");
+        title.textContent = `${cardName} (${rarity})`;
+      }
+    } catch (err) {
+      console.error("Failed to fetch rarity", err);
+    }
 
     const ctx = container.querySelector("canvas").getContext("2d");
     let chart = new Chart(ctx, {
