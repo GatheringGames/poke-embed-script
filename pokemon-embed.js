@@ -19,24 +19,72 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    .poke-embed { background: #394042; color: white; border-radius: 8px; padding: 1em; margin: 1em 0; display: flex; flex-wrap: wrap; gap: 1em; border: 2px solid #5c696d; }
-    .poke-embed img { width: 250px; border-radius: 4px; cursor: zoom-in; display: block; margin: 0 auto; }
-    .poke-info { flex: 1; min-width: 200px; }
-    .poke-info h3 { margin-top: 0; color: white; }
-    .poke-price-label { font-weight: bold; margin-top: 0.5em; }
-    .poke-currency-buttons, .poke-range-buttons {
-      text-align: center;
+    .poke-embed {
+      background: #394042;
+      color: white;
+      border-radius: 8px;
+      padding: 1em;
+      margin: 1em 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      border: 2px solid #5c696d;
+    }
+    .poke-card-image {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    .poke-embed img {
+      width: 250px;
+      border-radius: 4px;
+      cursor: zoom-in;
+    }
+    .poke-info {
+      flex: 1;
+      min-width: 200px;
+    }
+    .poke-info h3 {
+      margin-top: 0;
+      color: white;
+    }
+    .poke-price-label {
+      font-weight: bold;
       margin-top: 0.5em;
     }
-    .poke-currency-buttons button, .poke-range-buttons button {
-      margin: 0.25em 0.5em 0.25em 0 !important; padding: 4px 8px;
-      cursor: pointer; border: none; background: #ccc; border-radius: 4px;
+    .poke-currency-buttons,
+    .poke-range-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 0.5em;
     }
-    .poke-currency-buttons button.active, .poke-range-buttons button.active {
-      background-color: #d8232f; color: white;
+    .poke-currency-buttons button,
+    .poke-range-buttons button {
+      margin: 0.25em;
+      padding: 4px 8px;
+      cursor: pointer;
+      border: none;
+      background: #ccc;
+      border-radius: 4px;
     }
-    canvas.poke-price-chart { max-width: 100%; margin-top: 1em; background: white; border-radius: 4px; display: block; margin-left: auto; margin-right: auto; }
-    .poke-price-note { font-size: 0.8em; margin-top: 4px; color: #ccc; text-align: center; }
+    .poke-currency-buttons button.active,
+    .poke-range-buttons button.active {
+      background-color: #d8232f;
+      color: white;
+    }
+    canvas.poke-price-chart {
+      max-width: 100%;
+      margin-top: 1em;
+      background: white;
+      border-radius: 4px;
+    }
+    .poke-price-note {
+      font-size: 0.8em;
+      margin-top: 4px;
+      color: #ccc;
+      text-align: center;
+    }
   `;
   document.head.appendChild(style);
 
@@ -99,21 +147,19 @@
     const pricesEUR = pricesUSD.map(p => p * exchangeRates.eur);
     const pricesGBP = pricesUSD.map(p => p * exchangeRates.gbp);
 
-    const currentUSD = pricesUSD[pricesUSD.length - 1] || 0;
     const currencyMap = { usd: pricesUSD, eur: pricesEUR, gbp: pricesGBP };
     const chartLabelMap = { usd: "USD", eur: "EUR", gbp: "GBP" };
 
-    const priceDisplay = container.querySelector(".poke-current-price");
-    priceDisplay.textContent = `$${currentUSD.toFixed(2)}`;
-
     const ctx = container.querySelector("canvas").getContext("2d");
+    const priceDisplay = container.querySelector(".poke-current-price");
+
     let chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: dates,
+        labels: [],
         datasets: [{
           label: "Price (USD)",
-          data: pricesUSD,
+          data: [],
           borderColor: "#d8232f",
           backgroundColor: "rgba(216, 35, 47, 0.2)",
           fill: true,
@@ -202,9 +248,6 @@
       return [resultDates, resultValues];
     }
 
-    // Default chart on load (7 days, USD)
-    updateChart("usd", 7);
-
     container.querySelectorAll(".poke-currency-buttons button").forEach(btn => {
       btn.addEventListener("click", () => {
         container.querySelectorAll(".poke-currency-buttons button").forEach(b => b.classList.remove("active"));
@@ -224,5 +267,8 @@
         updateChart(currency, range);
       });
     });
+
+    // Initial chart load
+    updateChart("usd", 7);
   }
 })();
