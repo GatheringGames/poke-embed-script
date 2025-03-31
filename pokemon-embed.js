@@ -20,19 +20,23 @@
   const style = document.createElement("style");
   style.textContent = `
     .poke-embed { background: #394042; color: white; border-radius: 8px; padding: 1em; margin: 1em 0; display: flex; flex-wrap: wrap; gap: 1em; border: 2px solid #5c696d; }
-    .poke-embed img { width: 250px; border-radius: 4px; cursor: zoom-in; }
+    .poke-embed img { width: 250px; border-radius: 4px; cursor: zoom-in; display: block; margin: 0 auto; }
     .poke-info { flex: 1; min-width: 200px; }
     .poke-info h3 { margin-top: 0; color: white; }
     .poke-price-label { font-weight: bold; margin-top: 0.5em; }
+    .poke-currency-buttons, .poke-range-buttons {
+      text-align: center;
+      margin-top: 0.5em;
+    }
     .poke-currency-buttons button, .poke-range-buttons button {
-      margin: 0.25em 0.5em 0.25em 0  !important; padding: 4px 8px;
+      margin: 0.25em 0.5em 0.25em 0 !important; padding: 4px 8px;
       cursor: pointer; border: none; background: #ccc; border-radius: 4px;
     }
     .poke-currency-buttons button.active, .poke-range-buttons button.active {
       background-color: #d8232f; color: white;
     }
-    canvas.poke-price-chart { max-width: 100%; margin-top: 1em; background: white; border-radius: 4px; }
-    .poke-price-note { font-size: 0.8em; margin-top: 4px; color: #ccc; }
+    canvas.poke-price-chart { max-width: 100%; margin-top: 1em; background: white; border-radius: 4px; display: block; margin-left: auto; margin-right: auto; }
+    .poke-price-note { font-size: 0.8em; margin-top: 4px; color: #ccc; text-align: center; }
   `;
   document.head.appendChild(style);
 
@@ -58,13 +62,13 @@
               <button data-currency="eur">EUR</button>
               <button data-currency="gbp">GBP</button>
             </div>
+            <canvas class="poke-price-chart"></canvas>
             <div class="poke-range-buttons">
               <button class="active" data-range="7">7d</button>
               <button data-range="30">30d</button>
               <button data-range="180">6mo</button>
               <button data-range="365">1yr</button>
             </div>
-            <canvas class="poke-price-chart"></canvas>
           </div>
         `;
         p.replaceWith(container);
@@ -138,10 +142,8 @@
       let downsampledPrices = prices;
 
       if (range === 180) {
-        // Fortnightly averages for 6 months
         [downsampledLabels, downsampledPrices] = averageOverIntervals(labels, prices, 14);
       } else if (range === 365) {
-        // Monthly averages for 1 year
         [downsampledLabels, downsampledPrices] = averageOverMonths(labels, prices);
       }
 
@@ -199,6 +201,9 @@
       }
       return [resultDates, resultValues];
     }
+
+    // Default chart on load (7 days, USD)
+    updateChart("usd", 7);
 
     container.querySelectorAll(".poke-currency-buttons button").forEach(btn => {
       btn.addEventListener("click", () => {
