@@ -33,9 +33,9 @@
     }
     .poke-card-image {
       text-align: center;
-      flex: 0 0 250px;
+      flex-shrink: 0;
     }
-    .poke-embed img {
+    .poke-card-image img {
       width: 250px;
       border-radius: 4px;
       cursor: zoom-in;
@@ -55,8 +55,11 @@
       font-weight: bold;
       margin-top: 0.5em;
     }
-    .poke-currency-buttons, .poke-range-buttons {
-      text-align: center;
+    .poke-currency-buttons,
+    .poke-range-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
     }
     .poke-currency-buttons button,
     .poke-range-buttons button {
@@ -82,14 +85,12 @@
       font-size: 0.8em;
       margin-top: 4px;
       color: #ccc;
+      text-align: center;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 600px) {
       .poke-embed {
         flex-direction: column;
         align-items: center;
-      }
-      .poke-card-image {
-        width: 100%;
       }
     }
   `;
@@ -165,10 +166,10 @@
     let chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: [],
+        labels: dates,
         datasets: [{
           label: "Price (USD)",
-          data: [],
+          data: pricesUSD,
           borderColor: "#d8232f",
           backgroundColor: "rgba(216, 35, 47, 0.2)",
           fill: true,
@@ -213,12 +214,15 @@
     }
 
     function averageOverIntervals(dates, values, days) {
-      const resultDates = [], resultValues = [];
+      const resultDates = [];
+      const resultValues = [];
       let sum = 0, count = 0, startDate = new Date(dates[0]);
+
       for (let i = 0; i < dates.length; i++) {
         const current = new Date(dates[i]);
         sum += values[i];
         count++;
+
         if ((current - startDate) / (1000 * 60 * 60 * 24) >= days || i === dates.length - 1) {
           resultDates.push(dates[i]);
           resultValues.push(sum / count);
@@ -231,8 +235,10 @@
     }
 
     function averageOverMonths(dates, values) {
-      const resultDates = [], resultValues = [];
+      const resultDates = [];
+      const resultValues = [];
       let sum = 0, count = 0, currentMonth = new Date(dates[0]).getMonth();
+
       for (let i = 0; i < dates.length; i++) {
         const d = new Date(dates[i]);
         if (d.getMonth() !== currentMonth && count > 0) {
