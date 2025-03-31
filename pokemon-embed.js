@@ -97,12 +97,13 @@
 
   async function initEmbeds() {
     const regex = /embed::\[\[(.+?)\s+\((.+?)\)\]\]/g;
-    const paragraphs = document.querySelectorAll("p");
+    const paragraphs = Array.from(document.querySelectorAll("p"));
 
-    paragraphs.forEach(async (p) => {
+    for (const p of paragraphs) {
       const matches = [...p.innerHTML.matchAll(regex)];
+      if (!matches.length) continue;
 
-      for (let match of matches) {
+      for (const match of matches) {
         const [fullMatch, name, id] = match;
         const [set, number] = id.split("-");
 
@@ -137,23 +138,22 @@
           </div>
         `;
 
-        p.innerHTML = p.innerHTML.replace(fullMatch, container.outerHTML);
+        p.replaceWith(container);
 
-        setTimeout(() => setupEmbed(container, id), 100);
+        setupEmbed(container, id);
       }
-    });
+    }
   }
 
   async function setupEmbed(container, id) {
-    container.querySelector("img").addEventListener("click", e => {
-      window.open(e.target.dataset.hires, "_blank");
-    });
-
     const res = await fetch(`${SUPABASE_URL}/rest/v1/pokemon_card_prices?select=date,price_usd&card_id=eq.${id}&order=date.asc`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error("Price data fetch failed", await res.text());
+      return;
+    }
 
     const data = await res.json();
     const ctx = container.querySelector("canvas").getContext("2d");
@@ -162,7 +162,16 @@
 
     const chart = new Chart(ctx, {
       type: "line",
-      data: { labels: dates.slice(-7), datasets: [{ label: "Price (USD)", data: prices.slice(-7), borderColor: "#d8232f", fill: true }] },
+      data: {
+        labels: dates.slice(-7),
+        datasets: [{
+          label: "Price (USD)",
+          data: prices.slice(-7),
+          borderColor: "#d8232f",
+          backgroundColor: "rgba(216,35,47,0.2)",
+          fill: true,
+        }]
+      }
     });
 
     container.querySelector(".poke-current-price").textContent = `$${prices[prices.length - 1]}`;
@@ -176,6 +185,10 @@
         chart.data.datasets[0].data = prices.slice(-range);
         chart.update();
       });
+    });
+
+    container.querySelector("img").addEventListener("click", e => {
+      window.open(e.target.dataset.hires, "_blank");
     });
   }
 })();
