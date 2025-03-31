@@ -28,7 +28,10 @@
     document.querySelectorAll("p").forEach(p => {
       let match;
       while ((match = regex.exec(p.innerHTML)) !== null) {
-        const [fullMatch, name, id] = match;
+        const [fullMatch, name, rawId] = match;
+        const [set, num] = rawId.split("-");
+        const id = `${set}/${num}`;
+
         const container = document.createElement("div");
         container.className = "poke-embed";
         container.innerHTML = `
@@ -54,7 +57,7 @@
         });
 
         // Price chart setup
-        loadPriceChart(id, container);
+        loadPriceChart(rawId, container); // Keep rawId for Supabase query
       }
     });
   }
